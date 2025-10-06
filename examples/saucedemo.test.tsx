@@ -1,7 +1,7 @@
 import { latte, group } from "latte-test";
 
 // Simple browser tests - all tests run in real Chromium browser
-group("SauceDemo Tests", () => {
+group("SauceDemo Tests (TSX)", () => {
 
   latte("login with correct credentials", async (app) => {
     await app.open("https://www.saucedemo.com/");

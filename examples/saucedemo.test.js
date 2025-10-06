@@ -1,7 +1,7 @@
 import { latte, group } from "latte-test";
 
 // Simple browser tests - all tests run in real Chromium browser
-group("SauceDemo Tests (TS)", () => {
+group("SauceDemo Tests (JS)", () => {
 
   latte("login with correct credentials", async (app) => {
     await app.open("https://www.saucedemo.com/");
@@ -18,6 +18,5 @@ group("SauceDemo Tests (TS)", () => {
     await app.click("#login-button");
     await app.see("Epic sadface: Username and password do not match any user in this service");
   });
-
 
 });

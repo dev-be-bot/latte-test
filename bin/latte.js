@@ -39,7 +39,7 @@ class LatteCLI {
   }
 
   async run() {
-    console.log('☕ Latte Test Framework v1.1.0\n');
+    console.log('☕ Latte Test Framework v1.1.1\n');
     console.log('Discovering and executing test files...\n');
 
     // Register tsx loader for TSX support
@@ -161,8 +161,8 @@ class LatteCLI {
     console.log(`\n▶ Executing ${fileName}`);
     
     try {
-      // Clear any previous test registrations
-      const { clearTests, runTests } = await import('../src/index.js');
+      // Clear any previous test registrations  
+      const { clearTests, runTests } = await import('latte-test');
       clearTests();
       
       // Try direct import for all files (TS works, let's see if TSX can too)

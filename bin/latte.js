@@ -21,6 +21,9 @@ import { join } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
 
+// Import latte-test ONCE at the top level to avoid circular dependencies
+import { clearTests, runTests } from 'latte-test';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -162,11 +165,10 @@ class LatteCLI {
     
     try {
       // Clear any previous test registrations  
-      const { clearTests, runTests } = await import('latte-test');
       clearTests();
       
-      // Try direct import for all files (TS works, let's see if TSX can too)
-      await import(pathToFileURL(testFile));
+      // Import the test file (which will register its tests)
+      await import(pathToFileURL(testFile).href);
       
       // Run the registered tests
       const results = await runTests();

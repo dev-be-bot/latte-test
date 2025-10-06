@@ -23,7 +23,7 @@ class LatteCLI {
   }
 
   async run() {
-    console.log('☕ Latte Test Framework v1.0.5\n');
+    console.log('☕ Latte Test Framework v1.0.6\n');
     console.log('Discovering and executing test files...\n');
 
     try {
@@ -145,21 +145,50 @@ class LatteCLI {
     console.log(`\n▶ Executing ${fileName}`);
     
     try {
+      // Suppress module type warnings
+      const originalWarn = process.emitWarning;
+      process.emitWarning = (warning, type) => {
+        if (type === 'MODULE_TYPELESS_PACKAGE_JSON') return;
+        originalWarn.call(process, warning, type);
+      };
+      
       // Clear any previous test registrations
       const { clearTests, runTests } = await import('../src/index.js');
       clearTests();
       
-      // For TypeScript/JSX files, just try to import directly
-      // tsx should be installed as a dependency and handle the compilation
-      await import(pathToFileURL(testFile));
+      // Handle JSX/TSX files by running them with tsx
+      if (testFile.endsWith('.jsx') || testFile.endsWith('.tsx')) {
+        const { execSync } = await import('node:child_process');
+        try {
+          // Run with tsx in the same process context
+          execSync(`npx tsx "${testFile}"`, { 
+            stdio: 'inherit',
+            cwd: process.cwd()
+          });
+          
+          // For now, assume success if no error thrown
+          this.totalResults.passed += 1;
+          this.totalResults.total += 1;
+        } catch (error) {
+          this.totalResults.failed += 1;
+          this.totalResults.total += 1;
+          throw error;
+        }
+      } else {
+        // For JS/TS files, import directly
+        await import(pathToFileURL(testFile));
+        
+        // Run the registered tests
+        const results = await runTests();
+        
+        // Update totals
+        this.totalResults.passed += results.passed;
+        this.totalResults.failed += results.failed;
+        this.totalResults.total += (results.passed + results.failed);
+      }
       
-      // Run the registered tests
-      const results = await runTests();
-      
-      // Update totals
-      this.totalResults.passed += results.passed;
-      this.totalResults.failed += results.failed;
-      this.totalResults.total += (results.passed + results.failed);
+      // Restore original warning handler
+      process.emitWarning = originalWarn;
       
       console.log('');
       

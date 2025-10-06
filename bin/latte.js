@@ -31,7 +31,7 @@ class LatteCLI {
   }
 
   async run() {
-    console.log('☕ Latte Test Framework v2.0.0\n');
+    console.log('☕ Latte Test Framework v2.0.1\n');
     console.log('Discovering and executing test files...\n');
 
     try {
@@ -183,7 +183,8 @@ async function runIsolatedTest() {
 runIsolatedTest();
 `;
 
-      nodeArgs.push('--input-type=module', '--eval', runnerScript);
+      // Suppress the MODULE_TYPELESS_PACKAGE_JSON warning for test files
+      nodeArgs.push('--no-warnings=MODULE_TYPELESS_PACKAGE_JSON', '--input-type=module', '--eval', runnerScript);
       
       const child = spawn('node', nodeArgs, {
         stdio: ['inherit', 'pipe', 'pipe'],

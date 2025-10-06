@@ -31,7 +31,7 @@ class LatteCLI {
   }
 
   async run() {
-    console.log('☕ Latte Test Framework v2.0.5\n');
+    console.log('☕ Latte Test Framework v2.1.0\n');
     console.log('Discovering and executing test files...\n');
 
     try {
@@ -141,81 +141,35 @@ class LatteCLI {
       /\.spec\.ts$/,      // login.spec.ts
       /\.spec\.tsx$/      // login.spec.tsx
     ];
-    
     return testPatterns.some(pattern => pattern.test(filename));
   }
 
   async runTestFile(testFile) {
-    const fileName = testFile.split(/[/\\]/).pop();
+    const fileName = testFile.split(/[\\/]/).pop();
     console.log(`\n▶ Executing ${fileName}`);
-    
+
     return new Promise((resolve) => {
-      // Determine the right loader based on file extension
-      const ext = testFile.split('.').pop();
-      const isTypeScript = ext === 'ts' || ext === 'tsx';
+      const command = 'npx';
+      const args = ['tsx',  '--no-warnings', testFile];
       
-      // Create inline runner script that executes in a fresh process
-      const fileUrl = pathToFileURL(testFile).href;
-      const runnerScript = `
-import { clearTests, runTests } from 'latte-test';
-
-async function runIsolatedTest() {
-  try {
-    clearTests();
-    await import('${fileUrl}');
-    const results = await runTests();
-    console.log('__LATTE_RESULTS_START__');
-    console.log(JSON.stringify(results));
-    console.log('__LATTE_RESULTS_END__');
-    process.exit(0);
-  } catch (error) {
-    console.error('Test execution error:', error.message);
-    console.error(error.stack);
-    process.exit(1);
-  }
-}
-
-runIsolatedTest();
-`;
-
-      // Build command args
-      const args = [];
-      
-      if (isTypeScript) {
-        // Use node with tsx import for TypeScript files
-        args.push('--import', 'tsx/esm', '--no-warnings');
-      } else {
-        args.push('--no-warnings=MODULE_TYPELESS_PACKAGE_JSON');
-      }
-      
-      args.push('--input-type=module', '--eval', runnerScript);
-      
-      const child = spawn('node', args, {
+      const child = spawn(command, args, {
         stdio: ['inherit', 'pipe', 'pipe'],
         cwd: process.cwd(),
-        env: process.env
+        shell: true,
+        env: { 
+          ...process.env, 
+          FORCE_COLOR: '1',
+          NODE_OPTIONS: '--no-warnings=MODULE_TYPELESS_PACKAGE_JSON'
+        }
       });
-      
+
       let stdout = '';
       let stderr = '';
-      let inResults = false;
-      
+
       child.stdout.on('data', (data) => {
         const output = data.toString();
         stdout += output;
-        
-        // Parse output line by line to extract results
-        const lines = output.split('\n');
-        for (const line of lines) {
-          if (line.includes('__LATTE_RESULTS_START__')) {
-            inResults = true;
-          } else if (line.includes('__LATTE_RESULTS_END__')) {
-            inResults = false;
-          } else if (!inResults && line.trim()) {
-            // Print test output in real-time (not the results JSON)
-            console.log(line);
-          }
-        }
+        process.stdout.write(data);
       });
       
       child.stderr.on('data', (data) => {
@@ -224,27 +178,14 @@ runIsolatedTest();
       });
       
       child.on('close', (code) => {
-        try {
-          // Extract JSON results from stdout
-          const resultsMatch = stdout.match(/__LATTE_RESULTS_START__\s*({.*?})\s*__LATTE_RESULTS_END__/s);
-          
-          if (resultsMatch && resultsMatch[1]) {
-            const results = JSON.parse(resultsMatch[1]);
-            this.totalResults.passed += results.passed;
-            this.totalResults.failed += results.failed;
-            this.totalResults.total += (results.passed + results.failed);
-          } else if (code !== 0) {
-            // Test file crashed or had error
-            console.error(`✗ Test execution failed`);
-            this.totalResults.failed++;
-            this.totalResults.total++;
-          }
-        } catch (error) {
-          console.error(`\n✗ Error parsing results from ${fileName}: ${error.message}`);
+        if (code === 0) {
+          this.totalResults.passed++;
+          this.totalResults.total++;
+        } else {
+          console.error(`✗ Test execution failed with code ${code}`);
           this.totalResults.failed++;
           this.totalResults.total++;
         }
-        
         resolve();
       });
       

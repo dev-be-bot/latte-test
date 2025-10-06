@@ -22,7 +22,7 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
 
 // Import latte-test ONCE at the top level to avoid circular dependencies
-import { clearTests, runTests } from 'latte-test';
+import { clearTests, runTests } from '../src/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -42,7 +42,7 @@ class LatteCLI {
   }
 
   async run() {
-    console.log('☕ Latte Test Framework v1.1.1\n');
+    console.log('☕ Latte Test Framework v1.1.9\n');
     console.log('Discovering and executing test files...\n');
 
     // Register tsx loader for TSX support

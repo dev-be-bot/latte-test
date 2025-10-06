@@ -204,24 +204,33 @@ latte("math works correctly", async (app) => {
 });
 ```
 
-## 🏗️ Flexible File Organization
+## 🏗️ Smart Test Discovery
 
-**Latte finds test files anywhere in your project!** No special folders required:
+**Latte finds tests with intelligent prioritization:**
 
+### **🚀 Recommended (Fast):**
 ```
 your-project/
 ├── package.json
-├── login.test.js           # ✅ Root level
-├── tests/
-│   ├── auth.latte.js       # ✅ Tests folder
-│   └── cart.spec.ts        # ✅ Mixed extensions
-├── src/
-│   └── components.test.tsx # ✅ Alongside source code
-├── e2e/
-│   └── flows.test.js       # ✅ E2E folder
-└── any-folder/
-    └── more.latte.ts       # ✅ Any folder works!
+└── tests/                  # ⚡ Searched first (fastest)
+    ├── login.test.js
+    ├── cart.latte.ts
+    └── auth.spec.tsx
 ```
+
+### **🔍 Also Supported:**
+```
+your-project/
+├── package.json
+├── test/                   # ✅ Common folder
+├── __tests__/              # ✅ React/Jest style  
+├── e2e/                    # ✅ End-to-end tests
+├── login.test.js           # ✅ Root level
+└── src/
+    └── components.test.tsx # ✅ Alongside source
+```
+
+**Search Priority:** `tests/` → `test/` → `__tests__/` → `e2e/` → everywhere else
 
 **Run `npx latte` and it finds them all!** 🔍
 

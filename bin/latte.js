@@ -60,7 +60,29 @@ class LatteCLI {
 
   async discoverTests() {
     const cwd = process.cwd();
-    await this.findTestFiles(cwd);
+    
+    // Priority search order: common test folders first, then full project
+    const searchPaths = [
+      join(cwd, 'tests'),     // tests/
+      join(cwd, 'test'),      // test/
+      join(cwd, '__tests__'), // __tests__/
+      join(cwd, 'e2e'),       // e2e/
+      cwd                     // root + all subdirs (fallback)
+    ];
+    
+    for (const searchPath of searchPaths) {
+      try {
+        const stats = await stat(searchPath);
+        if (stats.isDirectory()) {
+          if (searchPath !== cwd) {
+            console.log(`📁 Searching ${searchPath.split(/[/\\]/).pop()}/ folder...`);
+          }
+          await this.findTestFiles(searchPath);
+        }
+      } catch (error) {
+        // Folder doesn't exist, skip
+      }
+    }
   }
 
   async findTestFiles(dir) {

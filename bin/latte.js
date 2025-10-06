@@ -7,6 +7,15 @@ process.emitWarning = function(warning, type, code, ...args) {
   return originalEmitWarning.call(this, warning, type, code, ...args);
 };
 
+// Register tsx loader for TSX support (async function)
+async function registerTsx() {
+  try {
+    await import('tsx/esm');
+  } catch (error) {
+    // tsx not available, TSX files will fail
+  }
+}
+
 import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
@@ -30,8 +39,11 @@ class LatteCLI {
   }
 
   async run() {
-    console.log('☕ Latte Test Framework v1.0.10\n');
+    console.log('☕ Latte Test Framework v1.1.0\n');
     console.log('Discovering and executing test files...\n');
+
+    // Register tsx loader for TSX support
+    await registerTsx();
 
     try {
       // Find all test files

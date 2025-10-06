@@ -56,6 +56,7 @@ Create a test file with any supported naming pattern:
 **Examples:**
 - `login.latte.js` - Latte test in JavaScript
 - `auth.latte.ts` - Latte test in TypeScript  
+- `component.latte.tsx` - Latte test in TypeScript + JSX
 - `cart.test.js` - Standard test naming
 - `api.spec.ts` - Specification style
 

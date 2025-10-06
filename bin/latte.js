@@ -31,7 +31,7 @@ class LatteCLI {
   }
 
   async run() {
-    console.log('☕ Latte Test Framework v1.2.0\n');
+    console.log('☕ Latte Test Framework v2.0.0\n');
     console.log('Discovering and executing test files...\n');
 
     try {

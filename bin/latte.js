@@ -31,7 +31,7 @@ class LatteCLI {
   }
 
   async run() {
-    console.log('☕ Latte Test Framework v2.0.2\n');
+    console.log('☕ Latte Test Framework v2.0.3\n');
     console.log('Discovering and executing test files...\n');
 
     try {
@@ -178,19 +178,19 @@ async function runIsolatedTest() {
 runIsolatedTest();
 `;
 
-      // For TypeScript files, use tsx binary; for JS files, use node
-      const command = isTypeScript ? 'npx' : 'node';
+      // Build command args
       const args = [];
       
       if (isTypeScript) {
-        args.push('tsx', '--no-warnings');
+        // Use node with tsx loader for TypeScript files
+        args.push('--loader', 'tsx/esm', '--no-warnings');
       } else {
         args.push('--no-warnings=MODULE_TYPELESS_PACKAGE_JSON');
       }
       
       args.push('--input-type=module', '--eval', runnerScript);
       
-      const child = spawn(command, args, {
+      const child = spawn('node', args, {
         stdio: ['inherit', 'pipe', 'pipe'],
         cwd: process.cwd(),
         env: process.env

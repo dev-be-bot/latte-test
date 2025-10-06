@@ -1,6 +1,6 @@
 {
   "name": "latte-test",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "☕ Latte — Lightweight Flow-Based Testing Framework for real browser testing",
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
@@ -18,7 +18,17 @@
     "test": "node bin/latte.js",
     "dev": "node --watch bin/latte.js"
   },
-  "keywords": ["testing", "framework", "flow", "lightweight", "beginner-friendly", "browser", "puppeteer", "e2e", "automation"],
+  "keywords": [
+    "testing",
+    "framework",
+    "flow",
+    "lightweight",
+    "beginner-friendly",
+    "browser",
+    "puppeteer",
+    "e2e",
+    "automation"
+  ],
   "author": "Latte Framework",
   "license": "MIT",
   "repository": {

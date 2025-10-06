@@ -23,25 +23,30 @@ class LatteCLI {
   }
 
   async run() {
-    console.log('☕ Latte - Lightweight Flow-Based Testing Framework\n');
+    console.log('☕ Latte Test Framework v1.0.2\n');
+    console.log('Discovering and executing test files...\n');
 
     try {
       // Find all test files
       await this.discoverTests();
       
       if (this.testFiles.length === 0) {
-        console.log('📝 No test files found. Create test files with supported extensions:');
-        console.log('   .latte.js/.latte.ts/.latte.tsx (recommended)');
-        console.log('   .test.js/.test.ts/.test.tsx');
-        console.log('   .spec.js/.spec.ts/.spec.tsx');
-        console.log('   Example: login.latte.js, cart.test.ts, auth.spec.tsx');
-        console.log('   Note: .ts/.tsx files require "tsx" package: npm install tsx\n');
-        this.showExampleUsage();
+        console.log('No test files found in the current directory.\n');
+        console.log('Supported file patterns:');
+        console.log('  • *.latte.{js,ts,tsx} (recommended)');
+        console.log('  • *.test.{js,ts,tsx}');
+        console.log('  • *.spec.{js,ts,tsx}');
+        console.log('\nExamples: login.latte.js, cart.test.ts, auth.spec.tsx');
+        console.log('Note: TypeScript files require: npm install tsx');
+        console.log('\nFor documentation and examples: https://github.com/dev-be-bot/latte-test');
         return;
       }
 
-      console.log(`🔍 Found ${this.testFiles.length} test file(s):`);
-      this.testFiles.forEach(file => console.log(`   ${file}`));
+      console.log(`Found ${this.testFiles.length} test file${this.testFiles.length === 1 ? '' : 's'}:\n`);
+      this.testFiles.forEach(file => {
+        const relativePath = file.replace(process.cwd(), '.').replace(/\\/g, '/');
+        console.log(`  ${relativePath}`);
+      });
       console.log('');
 
       // Run all test files
@@ -69,13 +74,12 @@ class LatteCLI {
       join(cwd, 'e2e'),       // e2e/
       cwd                     // root + all subdirs (fallback)
     ];
-    
     for (const searchPath of searchPaths) {
       try {
         const stats = await stat(searchPath);
         if (stats.isDirectory()) {
           if (searchPath !== cwd) {
-            console.log(`📁 Searching ${searchPath.split(/[/\\]/).pop()}/ folder...`);
+            console.log(`Scanning ${searchPath.split(/[/\\]/).pop()}/ directory...`);
           }
           await this.findTestFiles(searchPath);
         }
@@ -126,7 +130,8 @@ class LatteCLI {
   }
 
   async runTestFile(testFile) {
-    console.log(`📄 Running ${testFile.split(/[/\\]/).pop()}:`);
+    const fileName = testFile.split(/[/\\]/).pop();
+    console.log(`\n▶ Executing ${fileName}`);
     
     try {
       // Clear any previous test registrations
@@ -158,64 +163,30 @@ class LatteCLI {
       console.log('');
       
     } catch (error) {
-      console.error(`❌ Error in ${testFile}:`, error.message);
+      const fileName = testFile.split(/[/\\]/).pop();
+      console.error(`\n✗ Error in ${fileName}: ${error.message}`);
       this.totalResults.failed++;
       this.totalResults.total++;
     }
   }
 
   showFinalSummary() {
-    console.log('='.repeat(60));
-    console.log('📊 FINAL SUMMARY');
-    console.log('='.repeat(60));
-    console.log(`Total Tests: ${this.totalResults.total}`);
-    console.log(`✅ Passed: ${this.totalResults.passed}`);
-    console.log(`❌ Failed: ${this.totalResults.failed}`);
+    console.log('\n' + '─'.repeat(50));
+    console.log('Test Execution Summary');
+    console.log('─'.repeat(50));
+    console.log(`Total: ${this.totalResults.total}`);
+    console.log(`Passed: \x1b[32m${this.totalResults.passed}\x1b[0m`);
+    console.log(`Failed: \x1b[31m${this.totalResults.failed}\x1b[0m`);
+    console.log('─'.repeat(50));
     
-    if (this.totalResults.total > 0) {
-      const passRate = (this.totalResults.passed / this.totalResults.total * 100).toFixed(1);
-      console.log(`📈 Pass Rate: ${passRate}%`);
-    }
-    
-    console.log('');
-    
-    if (this.totalResults.failed === 0) {
-      console.log('🎉 All tests passed! Great job!');
-    } else {
-      console.log('💥 Some tests failed. Check the output above for details.');
+    if (this.totalResults.failed > 0) {
+      console.log('\n\x1b[31m✗ Test suite failed\x1b[0m');
       process.exit(1);
+    } else {
+      console.log('\n\x1b[32m✓ All tests passed\x1b[0m');
     }
   }
 
-  showExampleUsage() {
-    console.log('📚 Example test files:');
-    console.log('');
-    console.log('🟡 JavaScript (login.latte.js):');
-    console.log('```javascript');
-    console.log('import { latte, expect } from "latte-testing";');
-    console.log('');
-    console.log('latte("user can log in", async (app) => {');
-    console.log('  await app.open("/login");');
-    console.log('  await app.type("#username", "user");');
-    console.log('  await app.type("#password", "1234");');
-    console.log('  await app.click("#login-button");');
-    console.log('  await app.see("Welcome back, user!");');
-    console.log('});');
-    console.log('```');
-    console.log('');
-    console.log('🔵 TypeScript (auth.test.ts):');
-    console.log('```typescript');
-    console.log('import { latte, expect } from "latte-testing";');
-    console.log('');
-    console.log('latte("password reset works", async (app) => {');
-    console.log('  await app.open("/reset-password");');
-    console.log('  await app.type("#email", "user@example.com");');
-    console.log('  await app.click("#send-reset");');
-    console.log('  await app.see("Reset email sent");');
-    console.log('});');
-    console.log('```');
-    console.log('');
-  }
 }
 
 // Run the CLI if this file is executed directly

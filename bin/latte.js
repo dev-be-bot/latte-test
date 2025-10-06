@@ -23,8 +23,15 @@ class LatteCLI {
   }
 
   async run() {
-    console.log('☕ Latte Test Framework v1.0.6\n');
+    console.log('☕ Latte Test Framework v1.0.8\n');
     console.log('Discovering and executing test files...\n');
+
+    // Suppress module type warnings globally
+    const originalEmitWarning = process.emitWarning;
+    process.emitWarning = (warning, type, code) => {
+      if (code === 'MODULE_TYPELESS_PACKAGE_JSON') return;
+      originalEmitWarning.call(process, warning, type, code);
+    };
 
     try {
       // Find all test files
@@ -60,6 +67,9 @@ class LatteCLI {
     } catch (error) {
       console.error('❌ Error running tests:', error.message);
       process.exit(1);
+    } finally {
+      // Restore original warning handler
+      process.emitWarning = originalEmitWarning;
     }
   }
 
@@ -145,50 +155,38 @@ class LatteCLI {
     console.log(`\n▶ Executing ${fileName}`);
     
     try {
-      // Suppress module type warnings
-      const originalWarn = process.emitWarning;
-      process.emitWarning = (warning, type) => {
-        if (type === 'MODULE_TYPELESS_PACKAGE_JSON') return;
-        originalWarn.call(process, warning, type);
-      };
-      
       // Clear any previous test registrations
       const { clearTests, runTests } = await import('../src/index.js');
       clearTests();
       
-      // Handle JSX/TSX files by running them with tsx
+      // Handle JSX/TSX files by using tsx loader
       if (testFile.endsWith('.jsx') || testFile.endsWith('.tsx')) {
-        const { execSync } = await import('node:child_process');
         try {
-          // Run with tsx in the same process context
-          execSync(`npx tsx "${testFile}"`, { 
-            stdio: 'inherit',
-            cwd: process.cwd()
-          });
+          // Use tsx to register the loader and import the file
+          const { register } = await import('tsx/esm/api');
+          const unregister = register();
           
-          // For now, assume success if no error thrown
-          this.totalResults.passed += 1;
-          this.totalResults.total += 1;
-        } catch (error) {
-          this.totalResults.failed += 1;
-          this.totalResults.total += 1;
-          throw error;
+          try {
+            await import(pathToFileURL(testFile));
+          } finally {
+            unregister();
+          }
+        } catch (tsxError) {
+          // Fallback: try direct import (might work in some cases)
+          await import(pathToFileURL(testFile));
         }
       } else {
         // For JS/TS files, import directly
         await import(pathToFileURL(testFile));
-        
-        // Run the registered tests
-        const results = await runTests();
-        
-        // Update totals
-        this.totalResults.passed += results.passed;
-        this.totalResults.failed += results.failed;
-        this.totalResults.total += (results.passed + results.failed);
       }
       
-      // Restore original warning handler
-      process.emitWarning = originalWarn;
+      // Run the registered tests (works for all file types now)
+      const results = await runTests();
+      
+      // Update totals
+      this.totalResults.passed += results.passed;
+      this.totalResults.failed += results.failed;
+      this.totalResults.total += (results.passed + results.failed);
       
       console.log('');
       

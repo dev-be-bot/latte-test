@@ -22,11 +22,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/latte-framework/latte-test.git"
+    "url": "https://github.com/dev-be-bot/latte-test.git"
   },
-  "homepage": "https://github.com/latte-framework/latte-test#readme",
+  "homepage": "https://github.com/dev-be-bot/latte-test#readme",
   "bugs": {
-    "url": "https://github.com/latte-framework/latte-test/issues"
+    "url": "https://github.com/dev-be-bot/latte-test/issues"
   },
   "engines": {
     "node": ">=16.0.0"

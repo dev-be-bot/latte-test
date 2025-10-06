@@ -1,9 +1,16 @@
 #!/usr/bin/env node
 
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import { readdir, stat } from 'fs/promises';
-import { pathToFileURL } from 'url';
+// Suppress module warnings immediately
+const originalEmitWarning = process.emitWarning;
+process.emitWarning = function(warning, type, code, ...args) {
+  if (code === 'MODULE_TYPELESS_PACKAGE_JSON') return;
+  return originalEmitWarning.call(this, warning, type, code, ...args);
+};
+
+import { readdir, stat } from 'node:fs/promises';
+import { join } from 'node:path';
+import { pathToFileURL, fileURLToPath } from 'node:url';
+import { dirname } from 'node:path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -23,15 +30,8 @@ class LatteCLI {
   }
 
   async run() {
-    console.log('☕ Latte Test Framework v1.0.9\n');
+    console.log('☕ Latte Test Framework v1.0.10\n');
     console.log('Discovering and executing test files...\n');
-
-    // Suppress module type warnings globally
-    const originalEmitWarning = process.emitWarning;
-    process.emitWarning = function(warning, type, code, ...args) {
-      if (code === 'MODULE_TYPELESS_PACKAGE_JSON') return;
-      return originalEmitWarning.call(this, warning, type, code, ...args);
-    };
 
     try {
       // Find all test files
@@ -67,9 +67,6 @@ class LatteCLI {
     } catch (error) {
       console.error('❌ Error running tests:', error.message);
       process.exit(1);
-    } finally {
-      // Restore original warning handler
-      process.emitWarning = originalEmitWarning;
     }
   }
 
@@ -156,59 +153,16 @@ class LatteCLI {
       const { clearTests, runTests } = await import('../src/index.js');
       clearTests();
       
-      // Handle TSX files differently due to ESM cycle issues
-      if (testFile.endsWith('.tsx')) {
-        // For TSX, use subprocess to avoid ESM cycle issues
-        const { spawn } = await import('node:child_process');
-        const { promisify } = await import('node:util');
-        
-        const child = spawn('npx', ['tsx', testFile], { 
-          stdio: 'pipe',
-          shell: true 
-        });
-        
-        let output = '';
-        child.stdout.on('data', (data) => {
-          output += data.toString();
-          process.stdout.write(data); // Show output in real-time
-        });
-        
-        child.stderr.on('data', (data) => {
-          process.stderr.write(data); // Show errors in real-time
-        });
-        
-        const exitCode = await new Promise((resolve) => {
-          child.on('close', resolve);
-        });
-        
-        // Parse output to get test results
-        const passedMatches = output.match(/(\d+) passed/);
-        const failedMatches = output.match(/(\d+) failed/);
-        
-        const passed = passedMatches ? parseInt(passedMatches[1]) : 0;
-        const failed = failedMatches ? parseInt(failedMatches[1]) : 0;
-        
-        this.totalResults.passed += passed;
-        this.totalResults.failed += failed;
-        this.totalResults.total += (passed + failed);
-        
-        if (exitCode !== 0 && passed === 0 && failed === 0) {
-          // If tsx failed and we couldn't parse results, count as 1 failed
-          this.totalResults.failed += 1;
-          this.totalResults.total += 1;
-        }
-      } else {
-        // For JS/TS files, use direct import
-        await import(pathToFileURL(testFile));
-        
-        // Run the registered tests
-        const results = await runTests();
-        
-        // Update totals
-        this.totalResults.passed += results.passed;
-        this.totalResults.failed += results.failed;
-        this.totalResults.total += (results.passed + results.failed);
-      }
+      // Try direct import for all files (TS works, let's see if TSX can too)
+      await import(pathToFileURL(testFile));
+      
+      // Run the registered tests
+      const results = await runTests();
+      
+      // Update totals
+      this.totalResults.passed += results.passed;
+      this.totalResults.failed += results.failed;
+      this.totalResults.total += (results.passed + results.failed);
       
       console.log('');
       

@@ -7,29 +7,18 @@ process.emitWarning = function(warning, type, code, ...args) {
   return originalEmitWarning.call(this, warning, type, code, ...args);
 };
 
-// Register tsx loader for TSX support (async function)
-async function registerTsx() {
-  try {
-    await import('tsx/esm');
-  } catch (error) {
-    // tsx not available, TSX files will fail
-  }
-}
-
 import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
-
-// Import latte-test ONCE at the top level to avoid circular dependencies
-import { clearTests, runTests } from '../src/index.js';
+import { spawn } from 'node:child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 /**
  * Latte CLI Runner
- * Discovers and runs all .latte.js test files
+ * Runs each test file in an isolated Node.js process to avoid module conflicts
  */
 class LatteCLI {
   constructor() {
@@ -42,11 +31,8 @@ class LatteCLI {
   }
 
   async run() {
-    console.log('☕ Latte Test Framework v1.1.9\n');
+    console.log('☕ Latte Test Framework v1.2.0\n');
     console.log('Discovering and executing test files...\n');
-
-    // Register tsx loader for TSX support
-    await registerTsx();
 
     try {
       // Find all test files
@@ -71,7 +57,7 @@ class LatteCLI {
       });
       console.log('');
 
-      // Run all test files
+      // Run all test files in isolated processes
       for (const testFile of this.testFiles) {
         await this.runTestFile(testFile);
       }
@@ -163,29 +149,107 @@ class LatteCLI {
     const fileName = testFile.split(/[/\\]/).pop();
     console.log(`\n▶ Executing ${fileName}`);
     
-    try {
-      // Clear any previous test registrations  
-      clearTests();
+    return new Promise((resolve) => {
+      // Determine the right loader based on file extension
+      const ext = testFile.split('.').pop();
+      const nodeArgs = [];
       
-      // Import the test file (which will register its tests)
-      await import(pathToFileURL(testFile).href);
+      // Add tsx loader for TypeScript files
+      if (ext === 'ts' || ext === 'tsx') {
+        nodeArgs.push('--import', 'tsx/esm');
+      }
       
-      // Run the registered tests
-      const results = await runTests();
+      // Create inline runner script that executes in a fresh process
+      const fileUrl = pathToFileURL(testFile).href;
+      const runnerScript = `
+import { clearTests, runTests } from 'latte-test';
+
+async function runIsolatedTest() {
+  try {
+    clearTests();
+    await import('${fileUrl}');
+    const results = await runTests();
+    console.log('__LATTE_RESULTS_START__');
+    console.log(JSON.stringify(results));
+    console.log('__LATTE_RESULTS_END__');
+    process.exit(0);
+  } catch (error) {
+    console.error('Test execution error:', error.message);
+    console.error(error.stack);
+    process.exit(1);
+  }
+}
+
+runIsolatedTest();
+`;
+
+      nodeArgs.push('--input-type=module', '--eval', runnerScript);
       
-      // Update totals
-      this.totalResults.passed += results.passed;
-      this.totalResults.failed += results.failed;
-      this.totalResults.total += (results.passed + results.failed);
+      const child = spawn('node', nodeArgs, {
+        stdio: ['inherit', 'pipe', 'pipe'],
+        cwd: process.cwd(),
+        env: process.env
+      });
       
-      console.log('');
+      let stdout = '';
+      let stderr = '';
+      let inResults = false;
       
-    } catch (error) {
-      const fileName = testFile.split(/[/\\]/).pop();
-      console.error(`\n✗ Error in ${fileName}: ${error.message}`);
-      this.totalResults.failed++;
-      this.totalResults.total++;
-    }
+      child.stdout.on('data', (data) => {
+        const output = data.toString();
+        stdout += output;
+        
+        // Parse output line by line to extract results
+        const lines = output.split('\n');
+        for (const line of lines) {
+          if (line.includes('__LATTE_RESULTS_START__')) {
+            inResults = true;
+          } else if (line.includes('__LATTE_RESULTS_END__')) {
+            inResults = false;
+          } else if (!inResults && line.trim()) {
+            // Print test output in real-time (not the results JSON)
+            console.log(line);
+          }
+        }
+      });
+      
+      child.stderr.on('data', (data) => {
+        stderr += data.toString();
+        process.stderr.write(data);
+      });
+      
+      child.on('close', (code) => {
+        try {
+          // Extract JSON results from stdout
+          const resultsMatch = stdout.match(/__LATTE_RESULTS_START__\s*({.*?})\s*__LATTE_RESULTS_END__/s);
+          
+          if (resultsMatch && resultsMatch[1]) {
+            const results = JSON.parse(resultsMatch[1]);
+            this.totalResults.passed += results.passed;
+            this.totalResults.failed += results.failed;
+            this.totalResults.total += (results.passed + results.failed);
+          } else if (code !== 0) {
+            // Test file crashed or had error
+            console.error(`✗ Test execution failed`);
+            this.totalResults.failed++;
+            this.totalResults.total++;
+          }
+        } catch (error) {
+          console.error(`\n✗ Error parsing results from ${fileName}: ${error.message}`);
+          this.totalResults.failed++;
+          this.totalResults.total++;
+        }
+        
+        resolve();
+      });
+      
+      child.on('error', (error) => {
+        console.error(`\n✗ Failed to spawn test process: ${error.message}`);
+        this.totalResults.failed++;
+        this.totalResults.total++;
+        resolve();
+      });
+    });
   }
 
   showFinalSummary() {

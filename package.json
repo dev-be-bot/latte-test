@@ -1,6 +1,6 @@
 {
   "name": "latte-test",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "☕ Latte — Lightweight Flow-Based Testing Framework for real browser testing",
   "main": "index.js",
   "types": "src/index.d.ts",
@@ -33,7 +33,9 @@
     "node": ">=16.0.0"
   },
   "dependencies": {
-    "puppeteer": "^24.23.0",
+    "puppeteer": "^24.23.0"
+  },
+  "peerDependencies": {
     "tsx": "^4.0.0"
   },
   "exports": {

@@ -23,7 +23,7 @@ class LatteCLI {
   }
 
   async run() {
-    console.log('☕ Latte Test Framework v1.0.4\n');
+    console.log('☕ Latte Test Framework v1.0.5\n');
     console.log('Discovering and executing test files...\n');
 
     try {
@@ -149,20 +149,8 @@ class LatteCLI {
       const { clearTests, runTests } = await import('../src/index.js');
       clearTests();
       
-      // Handle TypeScript/TSX/JSX files using tsx loader
-      if (testFile.endsWith('.ts') || testFile.endsWith('.tsx') || testFile.endsWith('.jsx')) {
-        // Register tsx loader for TypeScript support
-        try {
-          // Use tsx/cjs instead of tsx/esm to avoid cycle issues
-          const { register } = await import('tsx/cjs');
-          register();
-        } catch (tsxError) {
-          console.error(`❌ TypeScript support requires 'tsx' package. Install with: npm install tsx`);
-          throw tsxError;
-        }
-      }
-      
-      // Import the test file (this will register tests)
+      // For TypeScript/JSX files, just try to import directly
+      // tsx should be installed as a dependency and handle the compilation
       await import(pathToFileURL(testFile));
       
       // Run the registered tests

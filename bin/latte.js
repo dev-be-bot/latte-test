@@ -23,14 +23,14 @@ class LatteCLI {
   }
 
   async run() {
-    console.log('☕ Latte Test Framework v1.0.8\n');
+    console.log('☕ Latte Test Framework v1.0.9\n');
     console.log('Discovering and executing test files...\n');
 
     // Suppress module type warnings globally
     const originalEmitWarning = process.emitWarning;
-    process.emitWarning = (warning, type, code) => {
+    process.emitWarning = function(warning, type, code, ...args) {
       if (code === 'MODULE_TYPELESS_PACKAGE_JSON') return;
-      originalEmitWarning.call(process, warning, type, code);
+      return originalEmitWarning.call(this, warning, type, code, ...args);
     };
 
     try {
@@ -40,11 +40,11 @@ class LatteCLI {
       if (this.testFiles.length === 0) {
         console.log('No test files found in the current directory.\n');
         console.log('Supported file patterns:');
-        console.log('  • *.latte.{js,jsx,ts,tsx} (recommended)');
-        console.log('  • *.test.{js,jsx,ts,tsx}');
-        console.log('  • *.spec.{js,jsx,ts,tsx}');
-        console.log('\nExamples: login.latte.js, cart.test.jsx, auth.spec.tsx');
-        console.log('Note: TypeScript/JSX files require: npm install tsx');
+        console.log('  • *.latte.{js,ts,tsx} (recommended)');
+        console.log('  • *.test.{js,ts,tsx}');
+        console.log('  • *.spec.{js,ts,tsx}');
+        console.log('\nExamples: login.latte.js, cart.test.ts, auth.spec.tsx');
+        console.log('Note: TypeScript files require: npm install tsx');
         console.log('\nFor documentation and examples: https://github.com/dev-be-bot/latte-test');
         return;
       }
@@ -134,15 +134,12 @@ class LatteCLI {
   isTestFile(filename) {
     const testPatterns = [
       /\.latte\.js$/,     // login.latte.js
-      /\.latte\.jsx$/,    // login.latte.jsx
       /\.latte\.ts$/,     // login.latte.ts  
       /\.latte\.tsx$/,    // login.latte.tsx
       /\.test\.js$/,      // login.test.js
-      /\.test\.jsx$/,     // login.test.jsx
       /\.test\.ts$/,      // login.test.ts
       /\.test\.tsx$/,     // login.test.tsx
       /\.spec\.js$/,      // login.spec.js
-      /\.spec\.jsx$/,     // login.spec.jsx
       /\.spec\.ts$/,      // login.spec.ts
       /\.spec\.tsx$/      // login.spec.tsx
     ];
@@ -159,34 +156,59 @@ class LatteCLI {
       const { clearTests, runTests } = await import('../src/index.js');
       clearTests();
       
-      // Handle JSX/TSX files by using tsx loader
-      if (testFile.endsWith('.jsx') || testFile.endsWith('.tsx')) {
-        try {
-          // Use tsx to register the loader and import the file
-          const { register } = await import('tsx/esm/api');
-          const unregister = register();
-          
-          try {
-            await import(pathToFileURL(testFile));
-          } finally {
-            unregister();
-          }
-        } catch (tsxError) {
-          // Fallback: try direct import (might work in some cases)
-          await import(pathToFileURL(testFile));
+      // Handle TSX files differently due to ESM cycle issues
+      if (testFile.endsWith('.tsx')) {
+        // For TSX, use subprocess to avoid ESM cycle issues
+        const { spawn } = await import('node:child_process');
+        const { promisify } = await import('node:util');
+        
+        const child = spawn('npx', ['tsx', testFile], { 
+          stdio: 'pipe',
+          shell: true 
+        });
+        
+        let output = '';
+        child.stdout.on('data', (data) => {
+          output += data.toString();
+          process.stdout.write(data); // Show output in real-time
+        });
+        
+        child.stderr.on('data', (data) => {
+          process.stderr.write(data); // Show errors in real-time
+        });
+        
+        const exitCode = await new Promise((resolve) => {
+          child.on('close', resolve);
+        });
+        
+        // Parse output to get test results
+        const passedMatches = output.match(/(\d+) passed/);
+        const failedMatches = output.match(/(\d+) failed/);
+        
+        const passed = passedMatches ? parseInt(passedMatches[1]) : 0;
+        const failed = failedMatches ? parseInt(failedMatches[1]) : 0;
+        
+        this.totalResults.passed += passed;
+        this.totalResults.failed += failed;
+        this.totalResults.total += (passed + failed);
+        
+        if (exitCode !== 0 && passed === 0 && failed === 0) {
+          // If tsx failed and we couldn't parse results, count as 1 failed
+          this.totalResults.failed += 1;
+          this.totalResults.total += 1;
         }
       } else {
-        // For JS/TS files, import directly
+        // For JS/TS files, use direct import
         await import(pathToFileURL(testFile));
+        
+        // Run the registered tests
+        const results = await runTests();
+        
+        // Update totals
+        this.totalResults.passed += results.passed;
+        this.totalResults.failed += results.failed;
+        this.totalResults.total += (results.passed + results.failed);
       }
-      
-      // Run the registered tests (works for all file types now)
-      const results = await runTests();
-      
-      // Update totals
-      this.totalResults.passed += results.passed;
-      this.totalResults.failed += results.failed;
-      this.totalResults.total += (results.passed + results.failed);
       
       console.log('');
       

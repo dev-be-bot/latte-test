@@ -31,7 +31,7 @@ class LatteCLI {
   }
 
   async run() {
-    console.log('☕ Latte Test Framework v2.0.1\n');
+    console.log('☕ Latte Test Framework v2.0.2\n');
     console.log('Discovering and executing test files...\n');
 
     try {
@@ -152,12 +152,7 @@ class LatteCLI {
     return new Promise((resolve) => {
       // Determine the right loader based on file extension
       const ext = testFile.split('.').pop();
-      const nodeArgs = [];
-      
-      // Add tsx loader for TypeScript files
-      if (ext === 'ts' || ext === 'tsx') {
-        nodeArgs.push('--import', 'tsx/esm');
-      }
+      const isTypeScript = ext === 'ts' || ext === 'tsx';
       
       // Create inline runner script that executes in a fresh process
       const fileUrl = pathToFileURL(testFile).href;
@@ -183,10 +178,19 @@ async function runIsolatedTest() {
 runIsolatedTest();
 `;
 
-      // Suppress the MODULE_TYPELESS_PACKAGE_JSON warning for test files
-      nodeArgs.push('--no-warnings=MODULE_TYPELESS_PACKAGE_JSON', '--input-type=module', '--eval', runnerScript);
+      // For TypeScript files, use tsx binary; for JS files, use node
+      const command = isTypeScript ? 'npx' : 'node';
+      const args = [];
       
-      const child = spawn('node', nodeArgs, {
+      if (isTypeScript) {
+        args.push('tsx', '--no-warnings');
+      } else {
+        args.push('--no-warnings=MODULE_TYPELESS_PACKAGE_JSON');
+      }
+      
+      args.push('--input-type=module', '--eval', runnerScript);
+      
+      const child = spawn(command, args, {
         stdio: ['inherit', 'pipe', 'pipe'],
         cwd: process.cwd(),
         env: process.env

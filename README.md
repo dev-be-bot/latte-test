@@ -48,10 +48,16 @@ npx latte
 
 ### Write Your First Test
 
-Create a test file with any supported extension:
-- `.latte.js/.latte.ts/.latte.tsx` (recommended)
-- `.test.js/.test.ts/.test.tsx` 
-- `.spec.js/.spec.ts/.spec.tsx`
+Create a test file with any supported naming pattern:
+- `.latte.js/.latte.ts/.latte.tsx` (recommended - Latte branding)
+- `.test.js/.test.ts/.test.tsx` (standard convention)
+- `.spec.js/.spec.ts/.spec.tsx` (specification style)
+
+**Examples:**
+- `login.latte.js` - Latte test in JavaScript
+- `auth.latte.ts` - Latte test in TypeScript  
+- `cart.test.js` - Standard test naming
+- `api.spec.ts` - Specification style
 
 **Note**: `.ts` and `.tsx` files require the `tsx` package: `npm install tsx`
 

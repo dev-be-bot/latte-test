@@ -23,7 +23,7 @@ class LatteCLI {
   }
 
   async run() {
-    console.log('☕ Latte Test Framework v1.0.3\n');
+    console.log('☕ Latte Test Framework v1.0.4\n');
     console.log('Discovering and executing test files...\n');
 
     try {
@@ -89,6 +89,7 @@ class LatteCLI {
       } catch (error) {
         // Folder doesn't exist, skip
       }
+    }
     
     // Convert Set back to Array
     this.testFiles = Array.from(foundFiles);

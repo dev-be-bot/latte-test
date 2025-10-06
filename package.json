@@ -1,0 +1,48 @@
+{
+  "name": "latte-test",
+  "version": "1.0.0",
+  "description": "☕ Latte — Lightweight Flow-Based Testing Framework for real browser testing",
+  "main": "index.js",
+  "type": "module",
+  "bin": {
+    "latte": "./bin/latte.js"
+  },
+  "files": [
+    "src/",
+    "bin/",
+    "index.js",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node bin/latte.js",
+    "dev": "node --watch bin/latte.js"
+  },
+  "keywords": ["testing", "framework", "flow", "lightweight", "beginner-friendly", "browser", "puppeteer", "e2e", "automation"],
+  "author": "Latte Framework",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/latte-framework/latte-test.git"
+  },
+  "homepage": "https://github.com/latte-framework/latte-test#readme",
+  "bugs": {
+    "url": "https://github.com/latte-framework/latte-test/issues"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "puppeteer": "^24.23.0",
+    "tsx": "^4.0.0"
+  },
+  "exports": {
+    ".": {
+      "import": "./src/index.js",
+      "require": "./src/index.js"
+    },
+    "./expect": {
+      "import": "./src/expect.js",
+      "require": "./src/expect.js"
+    }
+  }
+}

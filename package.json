@@ -1,6 +1,6 @@
 {
   "name": "latte-test",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "☕ Latte — Lightweight Flow-Based Testing Framework for real browser testing",
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
@@ -48,16 +48,19 @@
   "peerDependencies": {
     "tsx": "^4.0.0"
   },
+  "devDependencies": {
+    "tsx": "^4.20.6"
+  },
   "exports": {
     ".": {
       "import": "./src/index.js",
+      "default": "./src/index.js",
       "types": "./src/index.d.ts"
     },
     "./expect": {
-      "import": "./src/expect.js"
-    }
-  },
-  "devDependencies": {
-    "tsx": "^4.20.6"
+      "import": "./src/expect.js",
+      "types": "./src/expect.d.ts"
+    },
+    "./package.json": "./package.json"
   }
 }

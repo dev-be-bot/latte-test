@@ -23,7 +23,7 @@ class LatteCLI {
   }
 
   async run() {
-    console.log('☕ Latte Test Framework v1.0.2\n');
+    console.log('☕ Latte Test Framework v1.0.3\n');
     console.log('Discovering and executing test files...\n');
 
     try {
@@ -33,11 +33,11 @@ class LatteCLI {
       if (this.testFiles.length === 0) {
         console.log('No test files found in the current directory.\n');
         console.log('Supported file patterns:');
-        console.log('  • *.latte.{js,ts,tsx} (recommended)');
-        console.log('  • *.test.{js,ts,tsx}');
-        console.log('  • *.spec.{js,ts,tsx}');
-        console.log('\nExamples: login.latte.js, cart.test.ts, auth.spec.tsx');
-        console.log('Note: TypeScript files require: npm install tsx');
+        console.log('  • *.latte.{js,jsx,ts,tsx} (recommended)');
+        console.log('  • *.test.{js,jsx,ts,tsx}');
+        console.log('  • *.spec.{js,jsx,ts,tsx}');
+        console.log('\nExamples: login.latte.js, cart.test.jsx, auth.spec.tsx');
+        console.log('Note: TypeScript/JSX files require: npm install tsx');
         console.log('\nFor documentation and examples: https://github.com/dev-be-bot/latte-test');
         return;
       }
@@ -74,6 +74,9 @@ class LatteCLI {
       join(cwd, 'e2e'),       // e2e/
       cwd                     // root + all subdirs (fallback)
     ];
+    
+    const foundFiles = new Set(); // Prevent duplicates
+    
     for (const searchPath of searchPaths) {
       try {
         const stats = await stat(searchPath);
@@ -81,15 +84,17 @@ class LatteCLI {
           if (searchPath !== cwd) {
             console.log(`Scanning ${searchPath.split(/[/\\]/).pop()}/ directory...`);
           }
-          await this.findTestFiles(searchPath);
+          await this.findTestFiles(searchPath, foundFiles);
         }
       } catch (error) {
         // Folder doesn't exist, skip
       }
-    }
+    
+    // Convert Set back to Array
+    this.testFiles = Array.from(foundFiles);
   }
 
-  async findTestFiles(dir) {
+  async findTestFiles(dir, foundFiles = new Set()) {
     try {
       const entries = await readdir(dir);
       
@@ -98,30 +103,35 @@ class LatteCLI {
         const stats = await stat(fullPath);
         
         if (stats.isDirectory() && !entry.startsWith('.') && entry !== 'node_modules') {
-          await this.findTestFiles(fullPath);
+          await this.findTestFiles(fullPath, foundFiles);
         } else if (this.isTestFile(entry)) {
-          this.testFiles.push(fullPath);
+          foundFiles.add(fullPath);
         }
       }
     } catch (error) {
-      // Ignore permission errors and continue
+      // Skip directories we can't read
+      if (error.code !== 'EACCES') {
+        throw error;
+      }
     }
   }
 
   /**
    * Check if a file is a test file based on supported patterns
-   * @param {string} filename - The filename to check
    * @returns {boolean} - True if it's a test file
    */
   isTestFile(filename) {
     const testPatterns = [
       /\.latte\.js$/,     // login.latte.js
+      /\.latte\.jsx$/,    // login.latte.jsx
       /\.latte\.ts$/,     // login.latte.ts  
       /\.latte\.tsx$/,    // login.latte.tsx
       /\.test\.js$/,      // login.test.js
+      /\.test\.jsx$/,     // login.test.jsx
       /\.test\.ts$/,      // login.test.ts
       /\.test\.tsx$/,     // login.test.tsx
       /\.spec\.js$/,      // login.spec.js
+      /\.spec\.jsx$/,     // login.spec.jsx
       /\.spec\.ts$/,      // login.spec.ts
       /\.spec\.tsx$/      // login.spec.tsx
     ];
@@ -138,11 +148,13 @@ class LatteCLI {
       const { clearTests, runTests } = await import('../src/index.js');
       clearTests();
       
-      // Handle TypeScript/TSX files using tsx loader
-      if (testFile.endsWith('.ts') || testFile.endsWith('.tsx')) {
+      // Handle TypeScript/TSX/JSX files using tsx loader
+      if (testFile.endsWith('.ts') || testFile.endsWith('.tsx') || testFile.endsWith('.jsx')) {
         // Register tsx loader for TypeScript support
         try {
-          await import('tsx/esm');
+          // Use tsx/cjs instead of tsx/esm to avoid cycle issues
+          const { register } = await import('tsx/cjs');
+          register();
         } catch (tsxError) {
           console.error(`❌ TypeScript support requires 'tsx' package. Install with: npm install tsx`);
           throw tsxError;

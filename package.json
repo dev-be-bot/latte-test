@@ -1,6 +1,6 @@
 {
   "name": "latte-test",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "description": "☕ Latte — Lightweight Flow-Based Testing Framework for real browser testing",
   "main": "./src/index.js",
   "types": "./src/index.d.ts",

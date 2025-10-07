@@ -5,7 +5,8 @@ Latte is a super simple testing framework designed to test **real websites** (li
 ## 🌟 Features
 
 - **Real Browser Testing**: Uses Puppeteer + Chromium to test actual websites
-- **Smart Element Selection**: Auto-tries data-test-id, aria-label, name, id, class - no brittle selectors!
+- **Smart Element Selection**: Auto-tries semantic HTML, data-testid, aria-label, name, id, class - no brittle selectors!
+- **Production-Ready**: Successfully tested on complex staging environments with dynamic forms
 - **Enhanced Assertions**: 5 different ways to find content - text, HTML, selectors, ARIA, elements
 - **Flexible Test Running**: Run all tests, specific files, or filter by pattern
 - **Accessibility Testing**: Built-in support for ARIA attributes and accessibility validation
@@ -199,31 +200,104 @@ Latte automatically tries multiple approaches when you use `app.see()`:
 ## 🎯 Smart Element Selection
 
 Latte now includes **intelligent element finding** that tries multiple selector strategies automatically. No more brittle tests!
-
 ### **Supported Selector Types**
 
 When you use `app.click()` or `app.type()`, Latte tries these strategies in order:
 
-1. **data-test-id** (most reliable) - `[data-test-id="login-button"]`
+1. **semantic HTML** (most reliable) - `button[type="submit"]` for "Confirm", "Submit"
 2. **data-testid** (React Testing Library) - `[data-testid="login-button"]`
-3. **data-cy** (Cypress) - `[data-cy="login-button"]`
-4. **aria-label** (accessibility) - `[aria-label="login-button"]`
+3. **data-test-id** (alternative format) - `[data-test-id="login-button"]`
+4. **data-cy** (Cypress) - `[data-cy="login-button"]`
 5. **name attribute** (forms) - `[name="login-button"]`
-6. **placeholder text** - `[placeholder="login-button"]`
-7. **title attribute** - `[title="login-button"]`
-8. **id attribute** - `#login-button`
-9. **class name** - `.login-button`
-10. **ARIA role** - `[role="login-button"]`
+6. **id attribute** - `#login-button`
+7. **aria-label** (accessibility) - `[aria-label="login-button"]`
+8. **aria-labelledby** - `[aria-labelledby="login-button"]`
+9. **placeholder text** - `[placeholder="login-button"]`
+10. **title attribute** - `[title="login-button"]`
+11. **class name** - `.login-button`
+12. **ARIA role** - `[role="login-button"]`
 
 ### **Usage Examples**
 
 ```javascript
 // All of these work the same way - Latte finds the best match:
-
-await app.click("submit-btn");        // Tries data-test-id first, then others
+await app.click("Confirm");          // Finds button[type="submit"] - most reliable!
+await app.click("submit-btn");       // Tries data-testid first, then others
 await app.type("email-input", "user@example.com");  // Smart field detection
 await app.click("Close dialog");     // Finds by aria-label
 await app.type("username", "john");  // Finds by name attribute
+
+// Real-world example that works:
+await app.click("email");           // Finds name="email", id="email", or aria-label="email"
+await app.type("email", "user@example.com");
+await app.click("Confirm");         // Finds button[type="submit"] automatically
+```
+
+## 🔍 Element Discovery & Debugging
+
+### **Finding the Right Selectors**
+
+When tests fail with "Element not found" or "Expected to see X but it was not found", use these debugging strategies:
+
+#### **1. Take Screenshots**
+```javascript
+latte("debug login", async (app) => {
+  await app.open("https://mysite.com");
+  await app.screenshot("before-login.png");  // See initial state
+  
+  await app.click("email");
+  await app.type("email", "user@example.com");
+  await app.screenshot("after-email.png");   // See after typing
+  
+  await app.click("submit");
+  await app.wait(3000);
+  await app.screenshot("after-submit.png");  // See result page
+});
+```
+
+#### **2. Inspect Page Content**
+```javascript
+latte("debug content", async (app) => {
+  await app.open("https://mysite.com");
+  
+  // Get all page text to see what's actually there
+  const content = await app.getContent();
+  console.log("Page content:", content);
+  
+  // Look for partial matches
+  await app.see("Dashboard");     // ❌ Might fail
+  await app.see("Personal Dashboard"); // ✅ Exact match
+  await app.see("dashboard");     // ✅ Case-insensitive
+});
+```
+
+#### **3. Test Element Existence**
+```javascript
+latte("debug elements", async (app) => {
+  await app.open("https://mysite.com");
+  
+  // Check if elements exist before interacting
+  try {
+    await app.seeElement('button[type="submit"]');
+    console.log("✅ Submit button found");
+  } catch (error) {
+    console.log("❌ No submit button found");
+  }
+});
+```
+
+#### **4. Common Text Issues**
+```javascript
+// ❌ Common failures and ✅ solutions:
+
+// Issue: Extra whitespace or different text
+await app.see("Dashboard");       // ❌ Fails if text is "Personal Dashboard"
+await app.see("Personal Dashboard"); // ✅ Exact match
+await app.see("dashboard");       // ✅ Case-insensitive partial match
+
+// Issue: Dynamic content
+await app.see("Welcome John");    // ❌ Fails if name changes
+await app.see("Welcome");         // ✅ Partial match works
 ```
 
 ### **Best Practices**

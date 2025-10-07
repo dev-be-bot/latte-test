@@ -273,36 +273,59 @@ export class BrowserApp {
     
     // Try multiple selector strategies in order of preference
     const strategies = [
-      `[data-testid="${selector}"]`,            // data-testid (React Testing Library - most common)
+      // Semantic HTML first (most reliable)
+      selector === 'submit' || selector === 'Confirm' ? 'button[type="submit"]' : null,
+      
+      // Testing attributes
+      `[data-testid="${selector}"]`,            // data-testid (React Testing Library)
       `[data-test-id="${selector}"]`,           // data-test-id (alternative format)
       `[data-cy="${selector}"]`,                // data-cy (Cypress)
+      
+      // Form attributes
       `[name="${selector}"]`,                   // name attribute (forms)
-      `[aria-label="${selector}"]`,             // aria-label (accessibility)
       `#${selector}`,                           // id attribute
+      
+      // Accessibility attributes
+      `[aria-label="${selector}"]`,             // aria-label (accessibility)
       `[aria-labelledby="${selector}"]`,        // aria-labelledby
+      
+      // General attributes
       `[placeholder="${selector}"]`,            // placeholder text
       `[title="${selector}"]`,                  // title attribute
       `.${selector}`,                           // class name
       `[role="${selector}"]`,                   // ARIA role
       selector                                  // fallback to original
-    ];
+    ].filter(Boolean); // Remove null values
     
     // Try each strategy until one works
     for (const strategy of strategies) {
       try {
-        await this.page.waitForSelector(strategy, { timeout: 2000 });
+        // Wait for element to exist AND be enabled (not disabled)
+        await this.page.waitForSelector(`${strategy}:not([disabled])`, { timeout: 2000 });
         return strategy;
       } catch (error) {
-        // Continue to next strategy
+        // If that fails, try just waiting for existence (might be disabled initially)
+        try {
+          await this.page.waitForSelector(strategy, { timeout: 1000 });
+          return strategy;
+        } catch (error2) {
+          // Continue to next strategy
+        }
       }
     }
     
     // Try a more flexible approach - maybe the element loads dynamically
     try {
-      await this.page.waitForSelector(`[data-testid="${selector}"]`, { timeout: 5000 });
+      await this.page.waitForSelector(`[data-testid="${selector}"]`, { timeout: 8000 });
       return `[data-testid="${selector}"]`;
     } catch (error) {
-      // Final attempt failed
+      // Also try by aria-label if it matches
+      try {
+        await this.page.waitForSelector(`[aria-label="${selector}"]`, { timeout: 3000 });
+        return `[aria-label="${selector}"]`;
+      } catch (error2) {
+        // Final attempt failed
+      }
     }
     
     // If nothing worked, throw an error with helpful information

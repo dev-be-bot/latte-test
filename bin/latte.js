@@ -31,7 +31,7 @@ class LatteCLI {
   }
 
   async run() {
-    console.log('☕ Latte Test Framework v2.3.0\n');
+    console.log('☕ Latte Test Framework v2.4.0\n');
 
     try {
       // Parse command line arguments
@@ -41,7 +41,6 @@ class LatteCLI {
 
       // If a specific file is provided, run only that file
       if (specificFile) {
-        console.log(`Running specific file: ${specificFile}\n`);
         await this.runTestFile(specificFile);
         this.showFinalSummary();
         return;

@@ -59,15 +59,15 @@ export class BrowserApp {
 
   /**
    * Type text into an element
-   * @param {string} selector - CSS selector for the element
+   * @param {string} selector - CSS selector, data-test-id, aria-label, or element identifier
    * @param {string} value - Text to type
    */
   async type(selector, value) {
+    const resolvedSelector = await this.findElement(selector);
     this.log(`Typing "${value}" into ${selector}`);
     
     try {
-      await this.page.waitForSelector(selector, { timeout: this.options.timeout });
-      await this.page.focus(selector);
+      await this.page.focus(resolvedSelector);
       await this.page.keyboard.type(value);
       this.log(`✓ Typed "${value}" into ${selector}`);
     } catch (error) {
@@ -78,14 +78,14 @@ export class BrowserApp {
 
   /**
    * Click an element
-   * @param {string} selector - CSS selector for the element to click
+   * @param {string} selector - CSS selector, data-test-id, aria-label, or element identifier
    */
   async click(selector) {
+    const resolvedSelector = await this.findElement(selector);
     this.log(`Clicking: ${selector}`);
     
     try {
-      await this.page.waitForSelector(selector, { timeout: this.options.timeout });
-      await this.page.click(selector);
+      await this.page.click(resolvedSelector);
       this.log(`✓ Clicked: ${selector}`);
     } catch (error) {
       this.log(`✗ Failed to click ${selector} - ${error.message}`);
@@ -94,23 +94,63 @@ export class BrowserApp {
   }
 
   /**
-   * Assert that text is visible on the page
-   * @param {string} text - Text that should be present
+   * Assert that text/content is visible on the page
+   * @param {string} text - Text, HTML, or selector that should be present
    */
   async see(text) {
     this.log(`Looking for: "${text}"`);
     
     try {
-      // Wait for the text to appear on the page
+      // Enhanced search strategy - try multiple approaches
       await this.page.waitForFunction(
-        (searchText) => document.body.innerText.includes(searchText),
+        (searchText) => {
+          // Strategy 1: Check if it's a CSS selector
+          if (searchText.startsWith('.') || searchText.startsWith('#') || searchText.includes('[')) {
+            try {
+              return document.querySelector(searchText) !== null;
+            } catch (e) {
+              // Not a valid selector, continue to text search
+            }
+          }
+          
+          // Strategy 2: Check visible text content (most common)
+          if (document.body.innerText.includes(searchText)) {
+            return true;
+          }
+          
+          // Strategy 3: Check HTML content (for tags like <h6>Log In</h6>)
+          if (document.body.innerHTML.includes(searchText)) {
+            return true;
+          }
+          
+          // Strategy 4: Check for ARIA labels and attributes
+          const elementsWithAria = document.querySelectorAll('[aria-label*="' + searchText + '"], [aria-labelledby*="' + searchText + '"], [title*="' + searchText + '"]');
+          if (elementsWithAria.length > 0) {
+            return true;
+          }
+          
+          // Strategy 5: Check for text in all text nodes (case-insensitive)
+          const walker = document.createTreeWalker(
+            document.body,
+            NodeFilter.SHOW_TEXT,
+            null,
+            false
+          );
+          
+          let node;
+          while (node = walker.nextNode()) {
+            if (node.textContent.toLowerCase().includes(searchText.toLowerCase())) {
+              return true;
+            }
+          }
+          
+          return false;
+        },
         { timeout: this.options.timeout },
         text
       );
       this.log(`✓ Found: "${text}"`);
     } catch (error) {
-      // Get current page content for better error messages
-      const content = await this.page.evaluate(() => document.body.innerText);
       this.log(`✗ Text "${text}" not found on page`);
       throw new Error(`Expected to see "${text}" but it was not found on the page`);
     }
@@ -160,7 +200,52 @@ export class BrowserApp {
    */
   async wait(ms) {
     this.log(`Waiting ${ms}ms`);
-    await this.page.waitForTimeout(ms);
+    await new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Assert that an element with the given selector exists
+   * @param {string} selector - CSS selector to check
+   */
+  async seeElement(selector) {
+    this.log(`Looking for element: ${selector}`);
+    
+    try {
+      await this.page.waitForSelector(selector, { timeout: this.options.timeout });
+      this.log(`✓ Found element: ${selector}`);
+    } catch (error) {
+      this.log(`✗ Element "${selector}" not found`);
+      throw new Error(`Expected to see element "${selector}" but it was not found on the page`);
+    }
+  }
+
+  /**
+   * Assert that an element has a specific attribute value
+   * @param {string} selector - CSS selector for the element
+   * @param {string} attribute - Attribute name (e.g., 'aria-label', 'title', 'class')
+   * @param {string} expectedValue - Expected attribute value
+   */
+  async seeAttribute(selector, attribute, expectedValue) {
+    this.log(`Checking ${selector} has ${attribute}="${expectedValue}"`);
+    
+    try {
+      await this.page.waitForFunction(
+        (sel, attr, expected) => {
+          const element = document.querySelector(sel);
+          if (!element) return false;
+          const actualValue = element.getAttribute(attr);
+          return actualValue && actualValue.includes(expected);
+        },
+        { timeout: this.options.timeout },
+        selector,
+        attribute,
+        expectedValue
+      );
+      this.log(`✓ Found ${selector} with ${attribute}="${expectedValue}"`);
+    } catch (error) {
+      this.log(`✗ Element "${selector}" does not have ${attribute}="${expectedValue}"`);
+      throw new Error(`Expected element "${selector}" to have ${attribute}="${expectedValue}"`);
+    }
   }
 
   /**
@@ -168,6 +253,60 @@ export class BrowserApp {
    */
   getLogs() {
     return this.logs;
+  }
+
+  /**
+   * Smart element finder that tries multiple selector strategies
+   * @param {string} selector - The selector to find
+   * @returns {string} - Working CSS selector
+   */
+  async findElement(selector) {
+    // If it's already a CSS selector (contains special chars), try it first
+    if (selector.includes('[') || selector.includes('.') || selector.includes('#') || selector.includes(' ') || selector.includes('>')) {
+      try {
+        await this.page.waitForSelector(selector, { timeout: 1000 });
+        return selector;
+      } catch (error) {
+        // If the CSS selector fails, fall through to try other strategies
+      }
+    }
+    
+    // Try multiple selector strategies in order of preference
+    const strategies = [
+      `[data-testid="${selector}"]`,            // data-testid (React Testing Library - most common)
+      `[data-test-id="${selector}"]`,           // data-test-id (alternative format)
+      `[data-cy="${selector}"]`,                // data-cy (Cypress)
+      `[name="${selector}"]`,                   // name attribute (forms)
+      `[aria-label="${selector}"]`,             // aria-label (accessibility)
+      `#${selector}`,                           // id attribute
+      `[aria-labelledby="${selector}"]`,        // aria-labelledby
+      `[placeholder="${selector}"]`,            // placeholder text
+      `[title="${selector}"]`,                  // title attribute
+      `.${selector}`,                           // class name
+      `[role="${selector}"]`,                   // ARIA role
+      selector                                  // fallback to original
+    ];
+    
+    // Try each strategy until one works
+    for (const strategy of strategies) {
+      try {
+        await this.page.waitForSelector(strategy, { timeout: 2000 });
+        return strategy;
+      } catch (error) {
+        // Continue to next strategy
+      }
+    }
+    
+    // Try a more flexible approach - maybe the element loads dynamically
+    try {
+      await this.page.waitForSelector(`[data-testid="${selector}"]`, { timeout: 5000 });
+      return `[data-testid="${selector}"]`;
+    } catch (error) {
+      // Final attempt failed
+    }
+    
+    // If nothing worked, throw an error with helpful information
+    throw new Error(`Element "${selector}" not found. Searched using data-testid, name, aria-label, id, and other common selectors.`);
   }
 
   log(message) {

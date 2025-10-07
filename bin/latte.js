@@ -31,10 +31,22 @@ class LatteCLI {
   }
 
   async run() {
-    console.log('☕ Latte Test Framework v2.1.1\n');
-    console.log('Discovering and executing test files...\n');
+    console.log('☕ Latte Test Framework v2.3.0\n');
 
     try {
+      // Parse command line arguments
+      const args = process.argv.slice(2);
+      const filterPattern = args.find(arg => arg.startsWith('--filter='))?.split('=')[1];
+      const specificFile = args.find(arg => !arg.startsWith('--'));
+
+      // If a specific file is provided, run only that file
+      if (specificFile) {
+        console.log(`Running specific file: ${specificFile}\n`);
+        await this.runTestFile(specificFile);
+        this.showFinalSummary();
+        return;
+      }
+
       // Find all test files
       await this.discoverTests();
       
@@ -47,18 +59,40 @@ class LatteCLI {
         console.log('\nExamples: login.latte.js, cart.test.ts, auth.spec.tsx');
         console.log('Note: TypeScript files require: npm install tsx');
         console.log('\nFor documentation and examples: https://github.com/dev-be-bot/latte-test');
+        console.log('\nUsage:');
+        console.log('  npx latte                    # Run all tests');
+        console.log('  npx latte login.test.js      # Run specific file');
+        console.log('  npx latte --filter=login     # Run tests matching pattern');
         return;
       }
 
-      console.log(`Found ${this.testFiles.length} test file${this.testFiles.length === 1 ? '' : 's'}:\n`);
-      this.testFiles.forEach(file => {
-        const relativePath = file.replace(process.cwd(), '.').replace(/\\/g, '/');
-        console.log(`  ${relativePath}`);
-      });
-      console.log('');
+      // Filter test files if pattern is provided
+      let filesToRun = this.testFiles;
+      if (filterPattern) {
+        filesToRun = this.testFiles.filter(file => 
+          file.toLowerCase().includes(filterPattern.toLowerCase())
+        );
+        
+        if (filesToRun.length === 0) {
+          console.log(`No test files found matching pattern: "${filterPattern}"`);
+          console.log('\nAvailable test files:');
+          this.testFiles.forEach(file => {
+            const relativePath = file.replace(process.cwd(), '.').replace(/\\/g, '/');
+            console.log(`  ${relativePath}`);
+          });
+          return;
+        }
+        
+        console.log(`Running ${filesToRun.length} test file(s) matching "${filterPattern}":\n`);
+        filesToRun.forEach(file => {
+          const relativePath = file.replace(process.cwd(), '.').replace(/\\/g, '/');
+          console.log(`  ${relativePath}`);
+        });
+        console.log('');
+      }
 
-      // Run all test files in isolated processes
-      for (const testFile of this.testFiles) {
+      // Run test files in isolated processes
+      for (const testFile of filesToRun) {
         await this.runTestFile(testFile);
       }
 
@@ -145,9 +179,6 @@ class LatteCLI {
   }
 
   async runTestFile(testFile) {
-    const fileName = testFile.split(/[\\/]/).pop();
-    console.log(`\n▶ Executing ${fileName}`);
-
     return new Promise((resolve) => {
       const command = 'npx';
       const args = ['tsx',  '--no-warnings', testFile];
@@ -178,12 +209,16 @@ class LatteCLI {
       });
       
       child.on('close', (code) => {
-        if (code === 0) {
-          this.totalResults.passed++;
+        // Check for actual test failures in output
+        const hasTestFailures = stdout.includes('💥 Some tests failed') || 
+                               stderr.includes('Error:') || 
+                               stderr.includes('AssertionError');
+        
+        if (hasTestFailures || code !== 0) {
+          this.totalResults.failed++;
           this.totalResults.total++;
         } else {
-          console.error(`✗ Test execution failed with code ${code}`);
-          this.totalResults.failed++;
+          this.totalResults.passed++;
           this.totalResults.total++;
         }
         resolve();
@@ -199,19 +234,14 @@ class LatteCLI {
   }
 
   showFinalSummary() {
-    console.log('\n' + '─'.repeat(50));
-    console.log('Test Execution Summary');
-    console.log('─'.repeat(50));
-    console.log(`Total: ${this.totalResults.total}`);
-    console.log(`Passed: \x1b[32m${this.totalResults.passed}\x1b[0m`);
-    console.log(`Failed: \x1b[31m${this.totalResults.failed}\x1b[0m`);
-    console.log('─'.repeat(50));
+    console.log('\n' + '─'.repeat(30));
+    console.log(`📊 ${this.totalResults.passed} passed, ${this.totalResults.failed} failed`);
     
     if (this.totalResults.failed > 0) {
-      console.log('\n\x1b[31m✗ Test suite failed\x1b[0m');
+      console.log('❌ Tests failed');
       process.exit(1);
     } else {
-      console.log('\n\x1b[32m✓ All tests passed\x1b[0m');
+      console.log('✅ All tests passed');
     }
   }
 

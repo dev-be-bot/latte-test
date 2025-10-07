@@ -14,8 +14,6 @@ export class TestRunner {
    * @returns {Promise<{passed: number, failed: number, results: Array}>}
    */
   async runAll(tests) {
-    console.log('🧪 Running Latte tests...\n');
-    
     this.results = [];
     let passed = 0;
     let failed = 0;
@@ -32,15 +30,6 @@ export class TestRunner {
         console.log(`❌ ${result.description}`);
         console.log(`   ${result.error}`);
       }
-    }
-
-    console.log('\n' + '='.repeat(50));
-    console.log(`📊 Results: ${passed} passed, ${failed} failed`);
-    
-    if (failed === 0) {
-      console.log('🎉 All tests passed!');
-    } else {
-      console.log('💥 Some tests failed');
     }
 
     return {

@@ -1,6 +1,6 @@
 {
   "name": "latte-test",
-  "version": "2.1.1",
+  "version": "2.3.0",
   "description": "☕ Latte — Lightweight Flow-Based Testing Framework for real browser testing",
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
@@ -16,7 +16,11 @@
   ],
   "scripts": {
     "test": "node bin/latte.js",
-    "dev": "node --watch bin/latte.js"
+    "test:file": "node bin/latte.js",
+    "test:filter": "node bin/latte.js --filter=",
+    "dev": "node --watch bin/latte.js",
+    "validate": "node scripts/validate.js",
+    "prevalidate": "echo '🧪 Starting Latte Framework validation...'"
   },
   "keywords": [
     "testing",

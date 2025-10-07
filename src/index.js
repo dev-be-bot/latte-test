@@ -68,3 +68,14 @@ export { BrowserApp };
 
 // Re-export expect for convenience
 export { expect } from './expect.js';
+
+// Auto-run tests when module finishes loading (for CLI execution)
+if (typeof process !== 'undefined' && process.argv.length > 1) {
+  // Use process.nextTick to ensure all imports complete first
+  process.nextTick(async () => {
+    if (tests.length > 0) {
+      const results = await runTests();
+      process.exit(results.failed > 0 ? 1 : 0);
+    }
+  });
+}

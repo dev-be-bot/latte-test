@@ -8,6 +8,7 @@ Latte is a super simple testing framework designed to test **real websites** (li
 - **Smart Element Selection**: Auto-tries semantic HTML, data-testid, aria-label, name, id, class - no brittle selectors!
 - **Production-Ready**: Successfully tested on complex staging environments with dynamic forms
 - **Enhanced Assertions**: 5 different ways to find content - text, HTML, selectors, ARIA, elements
+- **Responsive Testing**: Set browser resolution for mobile, tablet, and desktop testing
 - **Flexible Test Running**: Run all tests, specific files, or filter by pattern
 - **Accessibility Testing**: Built-in support for ARIA attributes and accessibility validation
 - **Test Any Website**: localhost, staging, production, public sites - all work
@@ -110,7 +111,7 @@ npx latte --filter=login
 
 Output:
 ```
-☕ Latte Test Framework v2.3.0
+☕ Latte Test Framework v2.5.0
 
 ✅ user can log in to my site
 ✅ localhost login works
@@ -358,6 +359,8 @@ latte("description", async (app) => {
 | `app.see(text)` | **Enhanced!** Assert text, HTML, selectors, or ARIA content |
 | `app.seeElement(selector)` | **New!** Assert that an element exists |
 | `app.seeAttribute(selector, attr, value)` | **New!** Assert element attributes |
+| `app.resolution(width, height)` | **New!** Set browser resolution for responsive testing |
+| `app.getResolution()` | **New!** Get current browser resolution |
 | `app.wait(ms)` | Wait for a specific amount of time |
 
 ### 3. Assertions
@@ -446,6 +449,48 @@ latte("accessibility compliance check", async (app) => {
   // Find content by accessibility attributes
   await app.see("Close modal");  // Finds aria-label content
   await app.see("Required field"); // Finds aria-description content
+});
+```
+
+### Responsive Testing
+
+```javascript
+import { latte } from "latte-test";
+
+latte("responsive design test", async (app) => {
+  // Test desktop resolution
+  await app.resolution(1920, 1080);
+  
+  // Verify resolution was set
+  const desktopRes = await app.getResolution();
+  console.log(`Desktop: ${desktopRes.width}x${desktopRes.height}`);
+  
+  await app.open("https://mysite.com");
+  await app.screenshot("desktop-view.png");
+  
+  // Test mobile resolution
+  await app.resolution(375, 667);
+  
+  const mobileRes = await app.getResolution();
+  console.log(`Mobile: ${mobileRes.width}x${mobileRes.height}`);
+  
+  await app.screenshot("mobile-view.png");
+  
+  // Verify mobile navigation works
+  await app.click("menu-toggle");
+  await app.see("Navigation Menu");
+});
+
+latte("tablet layout test", async (app) => {
+  // Set tablet resolution (iPad)
+  await app.resolution(768, 1024);
+  
+  await app.open("https://mystore.com");
+  await app.screenshot("tablet-layout.png");
+  
+  // Test tablet-specific interactions
+  await app.click("product-grid");
+  await app.see("Product Details");
 });
 ```
 

@@ -31,7 +31,7 @@ class LatteCLI {
   }
 
   async run() {
-    console.log('☕ Latte Test Framework v2.4.1\n');
+    console.log('☕ Latte Test Framework v2.5.0\n');
 
     try {
       // Parse command line arguments

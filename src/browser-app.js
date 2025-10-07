@@ -195,6 +195,43 @@ export class BrowserApp {
   }
 
   /**
+   * Set the browser resolution (viewport size)
+   * @param {number} width - Resolution width in pixels
+   * @param {number} height - Resolution height in pixels
+   */
+  async resolution(width, height) {
+    await this.init();
+    this.log(`Setting resolution to ${width}x${height}`);
+    
+    try {
+      await this.page.setViewport({ width, height });
+      this.log(`✓ Resolution set to ${width}x${height}`);
+    } catch (error) {
+      this.log(`✗ Failed to set resolution: ${error.message}`);
+      throw new Error(`Failed to set resolution to ${width}x${height}: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get the current resolution (viewport dimensions)
+   * @returns {Promise<{width: number, height: number}>} Current resolution
+   */
+  async getResolution() {
+    if (!this.page) {
+      throw new Error('Browser not initialized. Call open() first.');
+    }
+    
+    try {
+      const viewport = this.page.viewport();
+      this.log(`Current resolution: ${viewport.width}x${viewport.height}`);
+      return viewport;
+    } catch (error) {
+      this.log(`✗ Failed to get resolution: ${error.message}`);
+      throw new Error(`Failed to get resolution: ${error.message}`);
+    }
+  }
+
+  /**
    * Wait for a specific amount of time
    * @param {number} ms - Milliseconds to wait
    */

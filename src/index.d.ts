@@ -9,6 +9,8 @@ export interface App {
   seeAttribute(selector: string, attribute: string, expectedValue: string): Promise<void>;
   wait(milliseconds: number): Promise<void>;
   screenshot(filename?: string): Promise<void>;
+  resolution(width: number, height: number): Promise<void>;
+  getResolution(): Promise<{width: number, height: number}>;
   close(): Promise<void>;
   getContent(): Promise<string>;
   getCurrentUrl(): Promise<string>;

@@ -52,8 +52,18 @@ export class TestRunner {
       // Create browser app instance with test options
       app = new BrowserApp(test.options || {});
       
+      // Run startBy hook if provided
+      if (test.options.startBy) {
+        await test.options.startBy(app);
+      }
+      
       // Run the test function
       await test.testFn(app);
+      
+      // Run finishBy hook if provided
+      if (test.options.finishBy) {
+        await test.options.finishBy(app);
+      }
       
       // Cleanup browser
       await app.cleanup();
@@ -67,6 +77,16 @@ export class TestRunner {
         group: test.group
       };
     } catch (error) {
+      // Still run finishBy hook even if test fails (for cleanup)
+      if (app && test.options.finishBy) {
+        try {
+          await test.options.finishBy(app);
+        } catch (finishByError) {
+          // Log but don't fail the test because of finishBy error
+          console.log(`⚠️  Warning: finishBy hook failed: ${finishByError.message}`);
+        }
+      }
+      
       // Cleanup browser if needed
       if (app) {
         await app.cleanup();

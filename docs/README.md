@@ -8,6 +8,7 @@ Latte is a super simple testing framework designed to test **real websites** (li
 - **Smart Element Selection**: Auto-tries semantic HTML, data-testid, aria-label, name, id, class - no brittle selectors!
 - **Production-Ready**: Successfully tested on complex staging environments with dynamic forms
 - **Enhanced Assertions**: 5 different ways to find content - text, HTML, selectors, ARIA, elements
+- **Test Hooks**: Readable `startBy`/`finishBy` hooks for setup and cleanup using the same API
 - **Responsive Testing**: Set browser resolution for mobile, tablet, and desktop testing
 - **Flexible Test Running**: Run all tests, specific files, or filter by pattern
 - **Accessibility Testing**: Built-in support for ARIA attributes and accessibility validation
@@ -363,7 +364,15 @@ latte("description", async (app) => {
 | `app.getResolution()` | **New!** Get current browser resolution |
 | `app.wait(ms)` | Wait for a specific amount of time |
 
-### 3. Assertions
+### 3. Test Options
+
+| Option | Description |
+|--------|-------------|
+| `startBy: async (app) => {}` | **New!** Setup hook - runs before the test |
+| `finishBy: async (app) => {}` | **New!** Cleanup hook - runs after the test |
+| `timeout: 10000` | Custom timeout in milliseconds (default: 5000) |
+
+### 4. Assertions
 
 ```javascript
 import { expect } from "latte-test";
@@ -378,6 +387,151 @@ expect(value).toBeNull();
 expect(value).toBeUndefined();
 expect(fn).toThrow("Error message");
 ```
+
+## 🎯 Test Hooks (Setup & Teardown)
+
+Latte supports **readable test hooks** that let you set up and clean up your tests using the same familiar `await app.method()` syntax.
+
+### **startBy & finishBy**
+
+Use `startBy` to prepare your test environment and `finishBy` to clean up afterward:
+
+```javascript
+latte("user can view dashboard", async (app) => {
+  // Main test - already logged in from startBy
+  await app.see("Welcome back, John!");
+  await app.click("profile");
+  await app.see("User Profile");
+}, {
+  startBy: async (app) => {
+    // Set up the test - runs before the main test
+    await app.open("https://myapp.com/login");
+    await app.type("email", "john@test.com");
+    await app.type("password", "secure123");
+    await app.click("login");
+    await app.see("Dashboard");
+  },
+  finishBy: async (app) => {
+    // Clean up - runs after the main test
+    await app.screenshot("test-complete.png");
+    await app.click("logout");
+  }
+});
+```
+
+### **Hook Features**
+
+- **Same API**: Hooks use the same `await app.click()` pattern as your tests
+- **Readable**: `startBy` and `finishBy` read like plain English instructions
+- **Reliable**: `finishBy` runs even if the test fails (for cleanup)
+- **Optional**: Only use hooks when you need them
+
+### **Common Hook Patterns**
+
+#### **Login Setup**
+```javascript
+latte("user can edit profile", async (app) => {
+  await app.click("edit-profile");
+  await app.type("name", "John Updated");
+  await app.click("save");
+  await app.see("Profile updated");
+}, {
+  startBy: async (app) => {
+    await app.open("https://myapp.com/login");
+    await app.type("email", "user@test.com");
+    await app.click("login");
+    await app.see("Dashboard");
+  }
+});
+```
+
+#### **Resolution Testing**
+```javascript
+latte("mobile navigation works", async (app) => {
+  await app.open("https://mysite.com");
+  await app.click("menu-toggle");
+  await app.see("Mobile Menu");
+}, {
+  startBy: async (app) => {
+    await app.resolution(375, 667); // iPhone size
+  },
+  finishBy: async (app) => {
+    await app.screenshot("mobile-test.png");
+  }
+});
+```
+
+#### **Data Preparation**
+```javascript
+latte("user can complete checkout", async (app) => {
+  await app.click("checkout");
+  await app.type("card-number", "4111111111111111");
+  await app.click("complete-order");
+  await app.see("Order confirmed");
+}, {
+  startBy: async (app) => {
+    await app.open("https://mystore.com/products");
+    await app.click("add-to-cart");
+    await app.see("Added to cart");
+  },
+  finishBy: async (app) => {
+    await app.screenshot("order-complete.png");
+  }
+});
+```
+
+### **Reusable Hooks (Multiple Tests)**
+
+For test suites where multiple tests need the same setup, define reusable hook functions:
+
+```javascript
+// Define login setup once - reuse across all tests
+const loginSetup = async (app) => {
+  await app.open("https://myapp.com/login");
+  await app.type("email", "user@test.com");
+  await app.type("password", "secure123");
+  await app.click("login");
+  await app.see("Dashboard");
+};
+
+// Define cleanup once
+const takeScreenshot = async (app) => {
+  await app.screenshot("test-complete.png");
+};
+
+// Use in multiple tests
+latte("user can view profile", async (app) => {
+  // Already logged in from loginSetup
+  await app.click("profile");
+  await app.see("User Profile");
+}, { 
+  startBy: loginSetup,
+  finishBy: takeScreenshot 
+});
+
+latte("user can edit settings", async (app) => {
+  // Already logged in from loginSetup
+  await app.click("settings");
+  await app.see("Account Settings");
+}, { 
+  startBy: loginSetup,
+  finishBy: takeScreenshot 
+});
+
+latte("user can view orders", async (app) => {
+  // Already logged in from loginSetup
+  await app.click("orders");
+  await app.see("Order History");
+}, { 
+  startBy: loginSetup 
+});
+```
+
+**Benefits:**
+- **DRY Code**: Write setup once, use everywhere
+- **Maintainable**: Change login flow in one place
+- **Flexible**: Mix different setups for different tests
+- **Clean**: Each test clearly shows what setup it uses
 
 ## 📝 Examples
 

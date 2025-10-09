@@ -114,7 +114,7 @@ npx latte login.test.js
 
 **When tests pass:**
 ```
-☕ Latte Test Framework v2.7.0
+☕ Latte Test Framework v2.6.0
 
 ✅ user can log in
 ✅ contact form works
@@ -125,7 +125,7 @@ npx latte login.test.js
 
 **When tests fail:**
 ```
-☕ Latte Test Framework v2.7.0
+☕ Latte Test Framework v2.6.0
 
 ❌ user can log in
    Expected to see "Welcome!" but it was not found on the page
